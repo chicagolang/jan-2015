@@ -1,0 +1,13 @@
+static/ <---- All frontend code
+  index.html
+  js/
+  css/
+  images/
+  fonts/
+  files/
+subservice/
+  foobar.go
+main.go
+service.go
+Makefile
+README.md

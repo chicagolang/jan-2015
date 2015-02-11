@@ -1,0 +1,305 @@
+X-Platform Web Applications in Go
+January 12, 2015
+
+Dan Sosedoff
+Software Engineer, Doejo
+dan.sosedoff@gmail.com
+http://sosedoff.com
+@sosedoff
+
+* Hello World!
+
+.image gopher.jpg
+
+* Intro
+
+- Go: simple yet powerful general-purpose language
+- Native GUI's are hard
+- Web applications are easy
+- Why not build a cross-platform web application?
+- How Go can help with the task ?
+
+* Learn yourself some Go
+
+- Web services
+- Deployment tools
+- System utilities
+- Database ORMs
+- Monitoring software
+- Infrastructure frameworks
+- ...
+
+Its not just for Web. Build anything with Go!
+
+* Problem
+
+You want to build an application that:
+
+- Has zero runtime dependencies
+- Ships as a single binary
+- Portable
+
+* What's involved?
+
+- Development
+- Cross-compilation
+- Testing
+- Distribution
+- Licensing
+
+* Development
+
+* Setup
+
+- Pick a base development OS and environment. Not all tools are cross-platform.
+- Utilize Vagrant for testing purposes
+- Use Makefiles (or scripts) to automate and simplify development flow
+- Have a minimum help section to get started
+
+Sample makefile usage:
+
+    Task                 : Description
+    -----------------    : -------------------
+    make setup           : Install all necessary dependencies
+    make dev             : Generate development build
+    make test            : Run tests
+    make build           : Generate production build for current OS
+    make release         : Generate binaries for all supported OSes
+    make clean           : Remove all build files and reset assets
+    make assets          : Generate production assets file
+    make dev-assets      : Generate development assets file
+
+* Project Structure
+
+- Keep it simple
+- Your customers don't care
+
+Example:
+
+.code snippets/structure.txt
+
+* Dependency Management
+
+*Backend*
+
+- Vendor dependencies as early as possible
+- No standard way of locking dependencies
+- Godep - Bundler for Go projects
+
+*Frontend*
+
+- Its a web app! Pick whatever css/js frameworks you like
+- Always check in production assets into repository
+- No need to include gzipped/minified assets
+
+* Tools
+
+Pick something that you're comfortable with, dont be religious about the choice.
+
+- Web framework: Gin, Martini
+- Asset embedding: Bindata
+- Cross-compilation: Gox
+- Task management: Make
+- Dependency management: Godep
+
+* Get started
+
+.code snippets/app.go
+
+* Add static assets route
+
+.code snippets/asset_handler.go
+
+Next, define `serveAsset` function
+
+* Asset handler
+
+.code snippets/serve_asset.go
+
+Ok, so how assets get embedded into the app?
+
+* Bindata
+
+go-bindata is a utility to generate Go code from any file
+
+- Embed anything
+- Read from filesystem for development
+
+Install:
+
+    go get github.com/jteeuwen/go-bindata
+
+Generate embed file:
+
+    go-bindata static/
+
+* Storage
+
+Data stored as a gzipped byte slice:
+
+    var _static_index_html = []byte("\x1f\x8b\x08\x00\x00\x09\x6e\x88\x00 .... ")
+
+Compression could be disabled with `-nocompress` flag.
+
+Bindata uses tree to store file references:
+
+.code snippets/asset_wrapper.go
+
+* Read asset data
+
+- `bindata.go` exposes `Asset` func
+- globally available
+
+.code snippets/read_asset.go
+
+Assets are embedded into binary, no need to fetch from CDN
+
+* Development mode
+
+- Rebuild is not required
+- Assets are read from disk
+
+.code snippets/dev_asset.go
+
+Activate with:
+
+    go-bindata -debug static/
+
+* Configuration
+
+- Use flag arguments
+- Employ human readable config formats: YAML, TOML
+
+* Background Execution
+
+Your program is not a service. Its fine running in foreground.
+
+Running a process in background could be non-trivial, leave it to others:
+
+- Linux - Upstart, init.d, systemd, runit, supervisord
+- OSX - Launchctl
+- Windows - Powershell
+
+* Cross-compilation
+
+* Bootstrap
+
+Cross-compiling requires toolchain first.
+
+Build toolchain:
+
+    # Run a toolchain setup script in $GOROOT/src
+    $ ./make.bash
+
+    # Building C bootstrap tool.
+    cmd/dist
+
+    # Building compilers and Go bootstrap tool for host, darwin/amd64.
+    lib9
+    libbio
+    liblink
+    cmd/cc
+    ...
+
+Its one time task but you have to run if you upgrade Go version
+
+* Gox
+
+- Simple tool for Go cross compilation
+- Parallel builds
+- Automates setup
+
+Install:
+
+    $ go get github.com/mitchellh/gox
+
+Setup build toolchain for all platforms:
+
+    $ gox -build-toolchain
+    ...
+    --> Toolchain: darwin/386
+    --> Toolchain: darwin/amd64
+    ...
+
+* Build Binaries
+
+For current environment:
+
+    $ go build
+
+For other operating system:
+  
+    $ GOOS=linux GOARCH=amd64 go build
+    $ GOOS=windows GOARCH=amd64 go build -o app.exe
+
+Automate with gox:
+
+    $ gox \
+      -osarch="darwin/amd64 darwin/386 linux/amd64 linux/386 windows/amd64 windows/386" \
+      -output="./bin/myapp_{{.OS}}_{{.Arch}}"
+
+    Number of parallel builds: 8
+
+    -->    darwin/amd64: github.com/myapp
+    -->      darwin/386: github.com/myapp
+    -->     linux/amd64: github.com/myapp
+    -->       linux/386: github.com/myapp
+
+* Testing
+
+* Testing
+
+- Standard `testing` framework makes you write lots of code
+- Test suite should be simple and straightforward
+- Integration testing is a good thing but comes with a cost
+
+Suggestions:
+
+.link https://github.com/stretchr/testify
+.link https://github.com/onsi/ginkgo
+.link https://github.com/franela/goblin
+
+* Continuous Integration
+
+- Use CI to verify build process
+- Collect binary artifacts
+
+Hosted solutions:
+
+- Travis CI - Runs builds on Linux, latest Go support, plenty of tools
+- Appveyor - Runs builds on Windows, fair Go support
+
+* Distribution
+
+* Binary Releases
+
+- Binary files could range from 7-15 mb, use zip
+- MD5/SHA1 checksum files are optional
+
+*Github*Releases*
+Free. Easy to use, tag-based releases. No download stats. Has API.
+
+*Bintray*
+DAAS (Distribution As A Service). Free. Binary releases, deb packages, etc.
+Tracks download metrics. Has API.
+
+*Amazon*S3*
+Pretty much a baseline. Does not need an explanation :)
+
+* OSX Extras
+
+Add project to Homebrew for seamless OSX integration:
+
+.link https://github.com/caskroom/homebrew-cask
+.link https://github.com/Homebrew/homebrew-binary
+
+* Licensing
+
+* Pick a License
+
+- Use MIT for open source
+- Check LICENSE file for closed source projects
+
+Great TL;DR service for software licenses:
+
+.link https://tldrlegal.com
